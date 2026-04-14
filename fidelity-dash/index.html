@@ -1,0 +1,693 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Fidelity Group — Digital Performance Dashboard</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Nunito+Sans:wght@300;400;600;700;800&display=swap" rel="stylesheet">
+<script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.min.js"></script>
+<style>
+  *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+  :root {
+    --dark:    #1c1d1e;
+    --red:     #cf152b;
+    --white:   #ffffff;
+    --blue:    #04267d;
+    --gray:    #f4f5f7;
+    --gray2:   #e8eaed;
+    --gray3:   #9aa0a8;
+    --card-bg: #ffffff;
+    --border:  #e8eaed;
+    --shadow:  0 2px 8px rgba(0,0,0,.07);
+  }
+
+  body {
+    font-family: 'Nunito Sans', 'Avenir Next', Avenir, sans-serif;
+    background: #f0f2f5;
+    color: var(--dark);
+    font-size: 14px;
+    line-height: 1.5;
+  }
+
+  /* ── Header ─────────────────────────────────────────────── */
+  .site-header {
+    background: var(--dark);
+    padding: 0 28px;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    height: 64px;
+    position: sticky;
+    top: 0;
+    z-index: 100;
+    box-shadow: 0 2px 12px rgba(0,0,0,.25);
+  }
+  .header-title {
+    color: var(--white);
+    font-size: 13px;
+    font-weight: 600;
+    letter-spacing: .04em;
+    text-transform: uppercase;
+    opacity: .75;
+  }
+  .header-meta { color: rgba(255,255,255,.55); font-size: 12px; }
+
+  /* ── Period Tabs ─────────────────────────────────────────── */
+  .period-bar {
+    background: var(--dark);
+    border-top: 1px solid rgba(255,255,255,.08);
+    padding: 0 28px;
+    display: flex;
+    align-items: center;
+    gap: 4px;
+  }
+  .period-tab {
+    background: none; border: none;
+    color: rgba(255,255,255,.5);
+    font-family: inherit; font-size: 13px; font-weight: 600;
+    padding: 10px 16px; cursor: pointer;
+    border-bottom: 2px solid transparent;
+    transition: color .15s, border-color .15s;
+  }
+  .period-tab:hover  { color: rgba(255,255,255,.85); }
+  .period-tab.active { color: var(--white); border-bottom-color: var(--red); }
+
+  /* ── Banners ─────────────────────────────────────────────── */
+  .banner { margin: 16px 24px 0; padding: 10px 16px; border-radius: 6px;
+            font-size: 13px; font-weight: 600; display: none; }
+  .banner.show { display: flex; align-items: flex-start; gap: 10px; }
+  .banner-info { background: #e3eaf8; color: var(--blue); border: 1px solid #b3c5e8; }
+  .banner-warn { background: #fff3cd; color: #7a5200; border: 1px solid #ffc107; }
+  .banner-err  { background: #fde8ea; color: #8b0000; border: 1px solid var(--red); }
+
+  /* ── Layout ─────────────────────────────────────────────── */
+  .dashboard { padding: 20px 24px 40px; max-width: 1400px; margin: 0 auto; }
+
+  .section-title {
+    font-size: 18px; font-weight: 800; color: var(--dark);
+    margin: 28px 0 14px; padding-bottom: 8px;
+    border-bottom: 2px solid var(--border);
+    display: flex; align-items: center; gap: 10px;
+  }
+  .section-title .pill {
+    background: var(--red); color: #fff;
+    font-size: 10px; font-weight: 800;
+    padding: 2px 8px; border-radius: 20px;
+    letter-spacing: .06em; text-transform: uppercase;
+  }
+
+  /* ── Cards ───────────────────────────────────────────────── */
+  .card { background: var(--card-bg); border-radius: 10px;
+          box-shadow: var(--shadow); border: 1px solid var(--border); padding: 20px; }
+  .card-title { font-size: 11px; font-weight: 800; text-transform: uppercase;
+                letter-spacing: .07em; color: var(--gray3); margin-bottom: 10px; }
+
+  /* ── Metric Grid ─────────────────────────────────────────── */
+  .metric-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(165px,1fr)); gap: 14px; }
+  .metric-card { padding: 18px 20px; }
+  .metric-val  { font-size: 28px; font-weight: 800; color: var(--dark); line-height: 1.1; margin-bottom: 4px; }
+  .metric-label { font-size: 11px; font-weight: 700; color: var(--gray3); text-transform: uppercase; letter-spacing: .05em; }
+  .metric-card.highlight   .metric-val { color: var(--blue); }
+  .metric-card.red-accent  .metric-val { color: var(--red); }
+
+  /* ── Grids ───────────────────────────────────────────────── */
+  .grid-2 { display: grid; grid-template-columns: 1fr 1fr; gap: 14px; }
+  @media (max-width: 900px) { .grid-2 { grid-template-columns: 1fr; } .metric-grid { grid-template-columns: repeat(2,1fr); } }
+
+  /* ── Charts ──────────────────────────────────────────────── */
+  .chart-wrap { position: relative; height: 240px; }
+  .chart-wrap canvas { max-height: 240px !important; }
+
+  /* ── Tables ──────────────────────────────────────────────── */
+  .data-table { width: 100%; border-collapse: collapse; font-size: 13px; }
+  .data-table th { text-align: left; font-size: 11px; font-weight: 800;
+                   text-transform: uppercase; letter-spacing: .06em; color: var(--gray3);
+                   padding: 6px 10px 8px; border-bottom: 1px solid var(--border); }
+  .data-table td { padding: 9px 10px; border-bottom: 1px solid var(--gray); vertical-align: middle; }
+  .data-table tr:last-child td { border-bottom: none; }
+  .data-table tr:hover td { background: var(--gray); }
+  .data-table .num { text-align: right; font-weight: 700; font-variant-numeric: tabular-nums; }
+  .data-table .url-cell { font-size: 12px; max-width: 240px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+
+  /* ── Rank Badge ──────────────────────────────────────────── */
+  .rank-badge { display: inline-block; min-width: 32px; text-align: center;
+                padding: 2px 6px; border-radius: 20px; font-size: 12px; font-weight: 800; }
+  .rank-1-3   { background: #d4f5e2; color: #0a6c37; }
+  .rank-4-10  { background: #fff3cd; color: #7a5200; }
+  .rank-11-20 { background: #fde8ea; color: var(--red); }
+  .rank-other { background: var(--gray2); color: var(--gray3); }
+
+  /* ── Traffic Value ───────────────────────────────────────── */
+  .tv-hero {
+    background: linear-gradient(135deg, var(--blue) 0%, #0a3fb5 100%);
+    border-radius: 10px; padding: 28px 32px; color: #fff;
+    display: flex; align-items: center; justify-content: space-between;
+    flex-wrap: wrap; gap: 16px;
+  }
+  .tv-hero .tv-val   { font-size: 48px; font-weight: 800; line-height: 1; }
+  .tv-hero .tv-label { font-size: 13px; font-weight: 600; opacity: .75; margin-top: 4px; }
+  .tv-hero .tv-sub   { font-size: 13px; opacity: .7; max-width: 380px; }
+
+  /* ── Competitor bars ─────────────────────────────────────── */
+  .comp-bar-wrap  { display: flex; align-items: center; gap: 10px; }
+  .comp-bar-bg    { flex: 1; height: 8px; background: var(--gray2); border-radius: 4px; overflow: hidden; }
+  .comp-bar-fill  { height: 100%; border-radius: 4px; background: var(--blue); transition: width .4s; }
+  .comp-bar-fill.own { background: var(--red); }
+  .comp-bar-val   { font-size: 12px; font-weight: 700; min-width: 48px; text-align: right; }
+
+  /* ── Loading / skeleton ──────────────────────────────────── */
+  .loading { color: var(--gray3); font-size: 13px; padding: 20px 0; text-align: center; }
+  .skeleton {
+    background: linear-gradient(90deg,var(--gray2) 25%,#eee 50%,var(--gray2) 75%);
+    background-size: 200% 100%; animation: shimmer 1.4s infinite;
+    border-radius: 6px; height: 28px; margin-bottom: 6px;
+  }
+  @keyframes shimmer { 0%{background-position:200% 0} 100%{background-position:-200% 0} }
+</style>
+</head>
+<body>
+
+<!-- ── Header ────────────────────────────────────────────── -->
+<header class="site-header">
+  <div>
+    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 400 80" style="height:36px">
+      <path fill="#fff" d="M94.52,38.8h-8.82v-8.7h8.82v-6.43c0-10.42,4.36-19.67,18.81-19.67,2.52,0,4.17.18,5.92.63l-.78,9.24c-1.26-.36-2.81-.63-4.46-.63-6.69,0-7.85,5.44-7.85,9.79v7.07h10.76v8.7h-10.76v34.8h-11.64v-34.8ZM131.17,8.8c4.27,0,7.56,2.81,7.56,6.53s-3.3,6.53-7.56,6.53-7.37-3.08-7.37-6.53,3.1-6.53,7.37-6.53ZM125.45,30.1h11.64v43.5h-11.64V30.1Z"/>
+      <path fill="#fff" d="M197.49,73.6h-11.06v-6.53h-.19c-3.2,4.98-9.5,7.79-16,7.79-14.16,0-22.89-10.51-22.89-23.2s9.31-22.84,22.6-22.84c8.53,0,13.19,3.99,15.61,6.8h.29V5.09h11.64v68.52ZM172.57,65.81c8.53,0,13.67-7.16,13.67-13.96s-5.14-14.14-13.67-14.14c-9.02,0-13.38,7.16-13.38,13.96s4.36,14.14,13.38,14.14Z"/>
+      <path fill="#fff" d="M255.96,55.3h-35.39c.48,6.16,6.5,10.69,13.28,10.69,5.82,0,9.7-2.18,12.32-5.62l7.76,5.8c-4.56,5.8-11.15,8.7-19.97,8.7-14.35,0-25.02-8.61-25.02-22.75s10.57-23.29,24.63-23.29c13,0,22.5,7.89,22.5,23.56,0,1,0,1.9-.1,2.9ZM244.42,47.5c0-5.62-3.4-10.51-10.96-10.51-6.89,0-12.41,4.44-12.9,10.51h23.86Z"/>
+      <path fill="#fff" d="M267.49,5.09h11.64v68.52h-11.64V5.09ZM299.2,8.8c4.27,0,7.56,2.81,7.56,6.53s-3.3,6.53-7.56,6.53-7.37-3.08-7.37-6.53,3.1-6.53,7.37-6.53ZM293.48,30.1h11.64v43.5h-11.64V30.1Z"/>
+      <path fill="#fff" d="M312.58,38.8v-8.7h8.15v-12.6h11.44v12.6h11.64v8.7h-11.64v20.21c0,3.9.97,6.71,6.11,6.71,1.55,0,3.59-.27,4.95-.9l.39,8.52c-2.04.72-5.14,1.18-7.76,1.18-12.32,0-15.13-7.07-15.13-15.41v-20.3h-8.15ZM345.25,30.1h12.9l12.99,31.63h.2l11.54-31.63h12.12l-22.01,52.84c-3.3,7.88-7.37,12.41-17.65,12.41-1.94,0-3.97-.18-6.01-.63l.97-9.43c1.55.45,3.1.63,4.36.63,4.95,0,6.3-2.27,8.24-6.8l2.33-5.53-19.98-43.5Z"/>
+      <circle fill="#cf152b" cx="15.56" cy="62.92" r="2.24"/>
+      <rect fill="#cf152b" x="15.75" y="48.5" width="23.94" height="4.49" rx="2.24" transform="translate(-27.76 34.47) rotate(-45)"/>
+      <rect fill="#cf152b" x="-.48" y="28.02" width="42.65" height="5.24" rx="2.62" transform="translate(13.92 67.05) rotate(-135)"/>
+      <circle fill="#cf152b" cx="66.35" cy="24.82" r="2.24"/>
+      <rect fill="#cf152b" x="42.21" y="34.75" width="23.94" height="4.49" rx="2.24" transform="translate(-10.29 49.15) rotate(-45)"/>
+      <rect fill="#cf152b" x="39.73" y="54.48" width="42.65" height="5.24" rx="2.62" transform="translate(63.86 140.65) rotate(-135)"/>
+      <circle fill="#cf152b" cx="60" cy="69.27" r="2.24"/>
+      <rect fill="#cf152b" x="6.4" y="61.36" width="42.65" height="5.24" rx="2.62" transform="translate(-37.12 38.34) rotate(-45)"/>
+      <rect fill="#cf152b" x="35.86" y="54.85" width="23.94" height="4.49" rx="2.24" transform="translate(54.38 -17.1) rotate(45)"/>
+      <circle fill="#cf152b" cx="21.9" cy="18.47" r="2.24"/>
+      <rect fill="#cf152b" x="32.85" y="21.15" width="42.65" height="5.24" rx="2.62" transform="translate(-.94 45.27) rotate(-45)"/>
+      <rect fill="#cf152b" x="22.1" y="28.4" width="23.94" height="4.49" rx="2.24" transform="translate(31.65 -15.12) rotate(45)"/>
+      <circle fill="#cf152b" cx="40.95" cy="43.87" r="2.24"/>
+    </svg>
+  </div>
+  <span class="header-title">Digital Performance Dashboard</span>
+  <span class="header-meta" id="reportDate">Loading…</span>
+</header>
+
+<div class="period-bar">
+  <button class="period-tab" data-days="7">7 Days</button>
+  <button class="period-tab" data-days="14">14 Days</button>
+  <button class="period-tab active" data-days="30">30 Days</button>
+  <button class="period-tab" data-days="90">12 Months</button>
+</div>
+
+<!-- ── Banners ────────────────────────────────────────────── -->
+<div id="bannerInfo" class="banner banner-info">ℹ️ <span id="bannerInfoText"></span></div>
+<div id="bannerWarn" class="banner banner-warn">⚠️ <span id="bannerWarnText"></span></div>
+<div id="bannerErr"  class="banner banner-err" >❌ <span id="bannerErrText"></span></div>
+
+<!-- ── Dashboard ─────────────────────────────────────────── -->
+<div class="dashboard">
+
+  <!-- ══ OVERALL PERFORMANCE ══════════════════════════════════ -->
+  <div class="section-title">Overall Performance <span class="pill">GA4</span></div>
+  <div class="metric-grid" id="ga4Metrics">
+    <div class="card metric-card"><div class="skeleton"></div><div class="metric-label">Sessions</div></div>
+    <div class="card metric-card"><div class="skeleton"></div><div class="metric-label">Users</div></div>
+    <div class="card metric-card"><div class="skeleton"></div><div class="metric-label">New Users</div></div>
+    <div class="card metric-card"><div class="skeleton"></div><div class="metric-label">Pageviews</div></div>
+    <div class="card metric-card"><div class="skeleton"></div><div class="metric-label">Engagement Rate</div></div>
+    <div class="card metric-card"><div class="skeleton"></div><div class="metric-label">Avg. Session</div></div>
+    <div class="card metric-card"><div class="skeleton"></div><div class="metric-label">Conversions</div></div>
+    <div class="card metric-card"><div class="skeleton"></div><div class="metric-label">Bounce Rate</div></div>
+  </div>
+
+  <div class="grid-2" style="margin-top:14px">
+    <div class="card">
+      <div class="card-title">Sessions Over Time</div>
+      <div class="chart-wrap"><canvas id="trendChart"></canvas></div>
+    </div>
+    <div class="card">
+      <div class="card-title">Traffic by Channel</div>
+      <div class="chart-wrap"><canvas id="channelChart"></canvas></div>
+    </div>
+  </div>
+
+  <div class="grid-2" style="margin-top:14px">
+    <div class="card">
+      <div class="card-title">Top Landing Pages</div>
+      <div id="pagesTable"><div class="loading">Loading…</div></div>
+    </div>
+    <div class="card">
+      <div class="card-title">Devices &amp; Geo</div>
+      <div class="chart-wrap" style="height:180px"><canvas id="deviceChart"></canvas></div>
+      <div id="geoTable" style="margin-top:12px"></div>
+    </div>
+  </div>
+
+  <!-- ══ SEO ═══════════════════════════════════════════════════ -->
+  <div class="section-title" style="margin-top:36px">SEO Performance <span class="pill">Semrush</span></div>
+
+  <div class="tv-hero">
+    <div>
+      <div class="tv-val" id="tvValue">—</div>
+      <div class="tv-label">Estimated Monthly Traffic Value</div>
+    </div>
+    <div class="tv-sub">The equivalent cost to buy your organic search traffic through Google Ads — based on current keyword rankings and their CPC values.</div>
+  </div>
+
+  <div class="metric-grid" id="seoMetrics" style="margin-top:14px">
+    <div class="card metric-card highlight"><div class="skeleton"></div><div class="metric-label">Organic Keywords</div></div>
+    <div class="card metric-card"><div class="skeleton"></div><div class="metric-label">Organic Traffic Est.</div></div>
+    <div class="card metric-card"><div class="skeleton"></div><div class="metric-label">Authority Score</div></div>
+    <div class="card metric-card red-accent"><div class="skeleton"></div><div class="metric-label">Backlinks</div></div>
+  </div>
+
+  <div class="grid-2" style="margin-top:14px">
+    <div class="card">
+      <div class="card-title">Tracked Keyword Rankings</div>
+      <div id="trackedTable"><div class="loading">Loading…</div></div>
+    </div>
+    <div class="card">
+      <div class="card-title">Top Organic Keywords</div>
+      <div id="organicTable"><div class="loading">Loading…</div></div>
+    </div>
+  </div>
+
+  <div class="card" style="margin-top:14px">
+    <div class="card-title">Competitor Visibility</div>
+    <div id="competitorBars"><div class="loading">Loading…</div></div>
+  </div>
+
+  <!-- ══ PPC ════════════════════════════════════════════════════ -->
+  <div class="section-title" style="margin-top:36px">PPC Performance <span class="pill">Semrush</span></div>
+
+  <div class="metric-grid" id="ppcMetrics">
+    <div class="card metric-card highlight"><div class="skeleton"></div><div class="metric-label">PPC Keywords</div></div>
+    <div class="card metric-card"><div class="skeleton"></div><div class="metric-label">PPC Traffic Est.</div></div>
+    <div class="card metric-card red-accent"><div class="skeleton"></div><div class="metric-label">Est. PPC Cost</div></div>
+    <div class="card metric-card"><div class="skeleton"></div><div class="metric-label">Avg. CPC</div></div>
+  </div>
+
+  <div class="card" style="margin-top:14px">
+    <div class="card-title">Top PPC Keywords</div>
+    <div id="ppcTable"><div class="loading">Loading…</div></div>
+  </div>
+
+</div>
+
+<script>
+// ═══════════════════════════════════════════════════════════════
+// CONFIG
+// ═══════════════════════════════════════════════════════════════
+const CONFIG = {
+    SEMRUSH_API_KEY: '',
+    SEMRUSH_PROXY:   '/.netlify/functions/semrush',
+    DOMAIN:          'fidelity-group.co.uk',
+    DATABASE:        'uk',
+    CURRENCY:        '£',
+    GA4_PROXY:       '/.netlify/functions/ga4',
+    GA4_PROPERTY_ID: '319624134',
+    TRACKED_KEYWORDS: [
+        'business broadband providers uk',
+        'voip for small business',
+        'iot connectivity solutions',
+        'business mobile deals uk',
+        'hosted telephony systems',
+        'business energy suppliers',
+        'leased line providers uk',
+        'merchant payment solutions'
+    ],
+    TOP_ORGANIC_LIMIT: 10,
+    TOP_PPC_LIMIT:     10,
+    COMPETITOR_LIMIT:  4,
+};
+
+// ── Helpers ────────────────────────────────────────────────────
+const fmt  = n => (n == null || n === '') ? '—' : Number(n).toLocaleString('en-GB');
+const fmtP = n => (n == null || n === '') ? '—' : (Number(n)*100).toFixed(1)+'%';
+const fmtS = n => {
+    if (n == null || n === '') return '—';
+    const s = Math.round(Number(n));
+    return `${Math.floor(s/60)}:${String(s%60).padStart(2,'0')}`;
+};
+const shorten = d => (d && typeof d==='string') ? (d.length>28 ? d.slice(0,26)+'…' : d) : (d||'');
+
+function showInfo(msg){ const b=document.getElementById('bannerInfo'); b.classList.add('show'); document.getElementById('bannerInfoText').textContent=msg; }
+function showWarn(msg){ const b=document.getElementById('bannerWarn'); b.classList.add('show'); document.getElementById('bannerWarnText').textContent=msg; }
+function showErr(msg) { const b=document.getElementById('bannerErr');  b.classList.add('show'); document.getElementById('bannerErrText').textContent=msg; }
+function hideAll()    { ['bannerInfo','bannerWarn','bannerErr'].forEach(id=>document.getElementById(id).classList.remove('show')); }
+
+// ── CSV parser ─────────────────────────────────────────────────
+function parseSemrushCSV(raw) {
+    try {
+        if (!raw || typeof raw !== 'string') return [];
+        const text = raw.trim();
+        if (!text || /^error/i.test(text) || /^nothing_found/i.test(text)) return [];
+        const lines = text.split('\n');
+        if (lines.length < 2) return [];
+        const headers = lines[0].split(';').map(h=>h.trim());
+        return lines.slice(1).filter(l=>l.trim()).map(line=>{
+            const vals=line.split(';'), obj={};
+            headers.forEach((h,i)=>{ obj[h]=(vals[i]||'').trim(); });
+            return obj;
+        });
+    } catch(e){ return []; }
+}
+
+// ── Semrush fetch ──────────────────────────────────────────────
+async function semrushFetch(params) {
+    params.database = params.database || CONFIG.DATABASE;
+    if (!params.key && CONFIG.SEMRUSH_API_KEY) params.key = CONFIG.SEMRUSH_API_KEY;
+    const qs  = new URLSearchParams(params).toString();
+    const url = `${CONFIG.SEMRUSH_PROXY}?${qs}`;
+    try {
+        const res  = await fetch(url);
+        const text = await res.text();
+        if (/QUERY_EXCEEDED|limit.*exceeded|quota/i.test(text)) {
+            showWarn('Semrush API credit limit reached. Some SEO data may be unavailable.');
+            return null;
+        }
+        if (/^error/i.test(text.trim())) {
+            console.warn('Semrush error:', text.slice(0,120));
+            return null;
+        }
+        return text;
+    } catch(e) {
+        console.error('Semrush fetch failed:', e.message);
+        return null;
+    }
+}
+
+// ── GA4 fetch — surfaces errors clearly ───────────────────────
+async function ga4Fetch(report, days) {
+    const d   = days === 90 ? 365 : days;
+    const url = `${CONFIG.GA4_PROXY}?report=${report}&days=${d}`;
+    try {
+        const res  = await fetch(url);
+        const json = await res.json();
+        // Surface GA4 API errors as banner messages
+        if (!res.ok || json.error) {
+            const msg = json.error || `HTTP ${res.status}`;
+            if (report === 'overview') showErr(`GA4 Error: ${msg}`);
+            console.error(`GA4 [${report}] error:`, msg);
+            return null;
+        }
+        return json;
+    } catch(e) {
+        if (report === 'overview') showErr(`GA4 connection failed: ${e.message}`);
+        console.error(`GA4 [${report}] failed:`, e.message);
+        return null;
+    }
+}
+
+// ── Chart.js defaults ──────────────────────────────────────────
+Chart.defaults.font.family = "'Nunito Sans', sans-serif";
+Chart.defaults.color = '#9aa0a8';
+const BLUE='#04267d', RED='#cf152b';
+const PALETTE=['#04267d','#cf152b','#2563eb','#16a34a','#ea580c','#7c3aed','#0891b2','#ca8a04'];
+let trendChart=null, channelChart=null, deviceChart=null;
+function destroyCharts(){ [trendChart,channelChart,deviceChart].forEach(c=>{if(c)c.destroy()}); trendChart=channelChart=deviceChart=null; }
+
+// ── Renders ────────────────────────────────────────────────────
+function renderGA4Metrics(data) {
+    const r = data?.rows?.[0]?.metricValues || [];
+    const v = i => r[i]?.value ?? null;
+    const cards = [
+        {val:fmt(v(0)),  label:'Sessions'},
+        {val:fmt(v(1)),  label:'Users'},
+        {val:fmt(v(2)),  label:'New Users'},
+        {val:fmt(v(5)),  label:'Pageviews'},
+        {val:fmtP(v(3)), label:'Engagement Rate', cls:'highlight'},
+        {val:fmtS(v(4)), label:'Avg. Session'},
+        {val:fmt(v(6)),  label:'Conversions', cls:'red-accent'},
+        {val:fmtP(v(7)), label:'Bounce Rate'},
+    ];
+    document.getElementById('ga4Metrics').innerHTML = cards.map(c=>
+        `<div class="card metric-card ${c.cls||''}">
+           <div class="metric-val">${c.val}</div>
+           <div class="metric-label">${c.label}</div>
+         </div>`
+    ).join('');
+}
+
+function renderTrend(data) {
+    const rows=data?.rows||[];
+    const labels  = rows.map(r=>{ const d=r.dimensionValues?.[0]?.value||''; return `${d.slice(6,8)}/${d.slice(4,6)}`; });
+    const sessions = rows.map(r=>+(r.metricValues?.[0]?.value||0));
+    const users    = rows.map(r=>+(r.metricValues?.[1]?.value||0));
+    if(trendChart)trendChart.destroy();
+    trendChart = new Chart(document.getElementById('trendChart').getContext('2d'), {
+        type:'line',
+        data:{ labels, datasets:[
+            {label:'Sessions',data:sessions,borderColor:BLUE,backgroundColor:'rgba(4,38,125,.08)',fill:true,tension:.35,pointRadius:2},
+            {label:'Users',   data:users,   borderColor:RED, backgroundColor:'transparent',       fill:false,tension:.35,pointRadius:2},
+        ]},
+        options:{responsive:true,maintainAspectRatio:false,plugins:{legend:{position:'top'}},scales:{y:{beginAtZero:true}}}
+    });
+}
+
+function renderChannels(data) {
+    const rows=data?.rows||[];
+    if(!rows.length){document.getElementById('channelChart').parentElement.innerHTML='<div class="loading">No channel data</div>';return;}
+    const labels=rows.map(r=>r.dimensionValues?.[0]?.value||'Unknown');
+    const vals  =rows.map(r=>+(r.metricValues?.[0]?.value||0));
+    if(channelChart)channelChart.destroy();
+    channelChart = new Chart(document.getElementById('channelChart').getContext('2d'),{
+        type:'doughnut',
+        data:{labels,datasets:[{data:vals,backgroundColor:PALETTE,borderWidth:2,borderColor:'#fff'}]},
+        options:{responsive:true,maintainAspectRatio:false,plugins:{legend:{position:'right',labels:{font:{size:11},boxWidth:12}}}}
+    });
+}
+
+function renderPages(data) {
+    const rows=(data?.rows||[]).slice(0,10);
+    if(!rows.length){document.getElementById('pagesTable').innerHTML='<div class="loading">No page data</div>';return;}
+    document.getElementById('pagesTable').innerHTML=
+        `<table class="data-table">
+          <thead><tr><th>Page</th><th class="num">Sessions</th><th class="num">Eng.%</th></tr></thead>
+          <tbody>${rows.map(r=>{
+              const pg=r.dimensionValues?.[0]?.value||'/';
+              return `<tr><td class="url-cell" title="${pg}">${pg}</td><td class="num">${fmt(r.metricValues?.[0]?.value)}</td><td class="num">${fmtP(r.metricValues?.[2]?.value)}</td></tr>`;
+          }).join('')}</tbody>
+        </table>`;
+}
+
+function renderDevices(data) {
+    const rows=data?.rows||[];
+    if(!rows.length){document.getElementById('deviceChart').parentElement.innerHTML='<div class="loading">No device data</div>';return;}
+    if(deviceChart)deviceChart.destroy();
+    deviceChart = new Chart(document.getElementById('deviceChart').getContext('2d'),{
+        type:'doughnut',
+        data:{labels:rows.map(r=>r.dimensionValues?.[0]?.value||''),datasets:[{data:rows.map(r=>+(r.metricValues?.[0]?.value||0)),backgroundColor:[BLUE,RED,'#ea580c'],borderWidth:2,borderColor:'#fff'}]},
+        options:{responsive:true,maintainAspectRatio:false,plugins:{legend:{position:'right',labels:{font:{size:11},boxWidth:12}}}}
+    });
+}
+
+function renderGeo(data) {
+    const rows=(data?.rows||[]).slice(0,5);
+    if(!rows.length){document.getElementById('geoTable').innerHTML='';return;}
+    document.getElementById('geoTable').innerHTML=
+        `<table class="data-table">
+          <thead><tr><th>Country</th><th class="num">Users</th><th class="num">Sessions</th></tr></thead>
+          <tbody>${rows.map(r=>
+              `<tr><td>${r.dimensionValues?.[0]?.value||'—'}</td><td class="num">${fmt(r.metricValues?.[0]?.value)}</td><td class="num">${fmt(r.metricValues?.[1]?.value)}</td></tr>`
+          ).join('')}</tbody>
+        </table>`;
+}
+
+function rankClass(pos){const p=+pos;if(p>=1&&p<=3)return'rank-1-3';if(p>=4&&p<=10)return'rank-4-10';if(p>=11&&p<=20)return'rank-11-20';return'rank-other';}
+
+function renderSEOMetrics(ovMap) {
+    const kw   = ovMap['Or']  || ovMap['Organic Keywords']  || '—';
+    const traf = ovMap['Ot']  || ovMap['Organic Traffic']   || '—';
+    const auth = ovMap['Rk']  || ovMap['Authority Score']   || '—';
+    const links= ovMap['Bl']  || ovMap['Backlinks']         || '—';
+    const tv   = ovMap['Oc']  || ovMap['Organic Cost']      || null;
+    if(tv && tv!=='0') document.getElementById('tvValue').textContent = CONFIG.CURRENCY + fmt(Math.round(Number(tv)));
+    document.getElementById('seoMetrics').innerHTML=[
+        {val:fmt(kw),  label:'Organic Keywords',cls:'highlight'},
+        {val:fmt(traf),label:'Organic Traffic Est.'},
+        {val:auth,     label:'Authority Score'},
+        {val:fmt(links),label:'Backlinks',cls:'red-accent'},
+    ].map(c=>`<div class="card metric-card ${c.cls||''}"><div class="metric-val">${c.val}</div><div class="metric-label">${c.label}</div></div>`).join('');
+}
+
+function renderTracked(rows) {
+    if(!rows||!rows.length){document.getElementById('trackedTable').innerHTML='<div class="loading">No ranking data available</div>';return;}
+    document.getElementById('trackedTable').innerHTML=
+        `<table class="data-table">
+          <thead><tr><th>Keyword</th><th class="num">Pos</th><th class="num">Volume</th><th class="num">CPC</th></tr></thead>
+          <tbody>${rows.map(r=>{
+              const pos=r.Position||r.Po||'—';
+              const cpc=r.CPC||r.Cp||'—';
+              return `<tr>
+                <td>${shorten(r.Keyword||'—')}</td>
+                <td class="num">${pos!=='—'?`<span class="rank-badge ${rankClass(pos)}">${pos}</span>`:'—'}</td>
+                <td class="num">${fmt(r['Search Volume']||r.Nq||'—')}</td>
+                <td class="num">${cpc!=='—'?CONFIG.CURRENCY+Number(cpc).toFixed(2):'—'}</td>
+              </tr>`;
+          }).join('')}</tbody>
+        </table>`;
+}
+
+function renderOrganic(rows) {
+    if(!rows||!rows.length){document.getElementById('organicTable').innerHTML='<div class="loading">No organic keyword data</div>';return;}
+    document.getElementById('organicTable').innerHTML=
+        `<table class="data-table">
+          <thead><tr><th>Keyword</th><th class="num">Pos</th><th class="num">Volume</th><th class="num">Traffic%</th></tr></thead>
+          <tbody>${rows.slice(0,CONFIG.TOP_ORGANIC_LIMIT).map(r=>{
+              const pos=r.Position||r.Po||'—';
+              const tpct=r['Traffic (%)'||r['Traffic%']]||r.Tr||'—';
+              return `<tr>
+                <td>${shorten(r.Keyword||'—')}</td>
+                <td class="num">${pos!=='—'?`<span class="rank-badge ${rankClass(pos)}">${pos}</span>`:'—'}</td>
+                <td class="num">${fmt(r['Search Volume']||r.Nq||'—')}</td>
+                <td class="num">${tpct!=='—'?Number(tpct).toFixed(1)+'%':'—'}</td>
+              </tr>`;
+          }).join('')}</tbody>
+        </table>`;
+}
+
+function renderCompetitors(rows, ownTraffic) {
+    if(!rows||!rows.length){document.getElementById('competitorBars').innerHTML='<div class="loading">No competitor data</div>';return;}
+    const all=rows.slice(0,CONFIG.COMPETITOR_LIMIT);
+    const max=Math.max(ownTraffic||0,...all.map(r=>+(r['Competitor Relevance']||r.Traffic||r['Organic Traffic']||r.Ot||0)));
+    const pct=v=>max?Math.round((+v/max)*100):0;
+    let html='';
+    if(ownTraffic){
+        html+=`<div style="margin-bottom:14px">
+          <div style="font-size:12px;font-weight:700;margin-bottom:6px;color:var(--red)">fidelity-group.co.uk <em style="font-weight:400;color:var(--gray3)">(your site)</em></div>
+          <div class="comp-bar-wrap"><div class="comp-bar-bg"><div class="comp-bar-fill own" style="width:${pct(ownTraffic)}%"></div></div><div class="comp-bar-val">${fmt(ownTraffic)}</div></div>
+        </div>`;
+    }
+    all.forEach(r=>{
+        const dom =r.Domain||r.Dn||r.Competitor||'—';
+        const traf=r['Competitor Relevance']||r.Traffic||r['Organic Traffic']||r.Ot||0;
+        html+=`<div style="margin-bottom:12px">
+          <div style="font-size:12px;font-weight:700;margin-bottom:6px">${shorten(dom)}</div>
+          <div class="comp-bar-wrap"><div class="comp-bar-bg"><div class="comp-bar-fill" style="width:${pct(traf)}%"></div></div><div class="comp-bar-val">${fmt(traf)}</div></div>
+        </div>`;
+    });
+    document.getElementById('competitorBars').innerHTML=html;
+}
+
+function renderPPCMetrics(rows, ovMap) {
+    const traf=ovMap['At']||ovMap['Paid Traffic']||'—';
+    const cost=ovMap['Ac']||ovMap['Paid Cost']||'—';
+    const avgCPC=rows.length?(rows.reduce((a,r)=>a+(+(r.CPC||r.Cp||0)),0)/rows.length).toFixed(2):'—';
+    document.getElementById('ppcMetrics').innerHTML=[
+        {val:fmt(rows.length),label:'PPC Keywords',cls:'highlight'},
+        {val:fmt(traf),       label:'PPC Traffic Est.'},
+        {val:cost!=='—'?CONFIG.CURRENCY+fmt(Math.round(Number(cost))):'—', label:'Est. PPC Cost',cls:'red-accent'},
+        {val:avgCPC!=='—'?CONFIG.CURRENCY+avgCPC:'—', label:'Avg. CPC'},
+    ].map(c=>`<div class="card metric-card ${c.cls||''}"><div class="metric-val">${c.val}</div><div class="metric-label">${c.label}</div></div>`).join('');
+}
+
+function renderPPCTable(rows) {
+    if(!rows||!rows.length){document.getElementById('ppcTable').innerHTML='<div class="loading">No PPC data found for this domain.</div>';return;}
+    document.getElementById('ppcTable').innerHTML=
+        `<table class="data-table">
+          <thead><tr><th>Keyword</th><th class="num">Position</th><th class="num">Volume</th><th class="num">CPC</th><th class="num">Traffic</th></tr></thead>
+          <tbody>${rows.slice(0,CONFIG.TOP_PPC_LIMIT).map(r=>{
+              const cpc=r.CPC||r.Cp||'—';
+              return `<tr>
+                <td>${shorten(r.Keyword||r.Ph||'—')}</td>
+                <td class="num">${r.Position||r.Po||'—'}</td>
+                <td class="num">${fmt(r['Search Volume']||r.Nq||'—')}</td>
+                <td class="num">${cpc!=='—'?CONFIG.CURRENCY+Number(cpc).toFixed(2):'—'}</td>
+                <td class="num">${fmt(r.Traffic||r.Tr||'—')}</td>
+              </tr>`;
+          }).join('')}</tbody>
+        </table>`;
+}
+
+// ── Main load ──────────────────────────────────────────────────
+async function loadDashboard(days) {
+    hideAll();
+    destroyCharts();
+
+    const now = new Date();
+    document.getElementById('reportDate').textContent =
+        now.toLocaleDateString('en-GB',{day:'numeric',month:'long',year:'numeric'}) +
+        ` · Last ${days===90?'12 months':days+' days'}`;
+
+    // Skeleton reset
+    document.getElementById('ga4Metrics').innerHTML=Array(8).fill(0).map(()=>
+        `<div class="card metric-card"><div class="skeleton"></div><div class="metric-label" style="height:12px;width:70%;background:var(--gray2);border-radius:4px;margin-top:4px"></div></div>`
+    ).join('');
+
+    // ── GA4 (all in parallel) ────────────────────────────────
+    const [r_ov,r_trend,r_chan,r_pages,r_dev,r_geo] = await Promise.allSettled([
+        ga4Fetch('overview',days),
+        ga4Fetch('trend',   days),
+        ga4Fetch('channels',days),
+        ga4Fetch('pages',   days),
+        ga4Fetch('devices', days),
+        ga4Fetch('geo',     days),
+    ]);
+    const ok = d => d.status==='fulfilled' ? d.value : null;
+
+    const ovData = ok(r_ov);
+    if(ovData) renderGA4Metrics(ovData);
+    else if(!document.getElementById('bannerErr').classList.contains('show'))
+        showInfo('GA4 data unavailable — add ergo-digital-dashboard@ergo-dashboard-api.iam.gserviceaccount.com as a Viewer in GA4 property 319624134, then refresh.');
+
+    const tData=ok(r_trend); if(tData)renderTrend(tData); else document.querySelector('#trendChart').parentElement.innerHTML='<div class="loading">No trend data</div>';
+    const cData=ok(r_chan);  if(cData)renderChannels(cData);
+    const pData=ok(r_pages); if(pData)renderPages(pData);  else document.getElementById('pagesTable').innerHTML='<div class="loading">No page data</div>';
+    const dData=ok(r_dev);   if(dData)renderDevices(dData);
+    const gData=ok(r_geo);   if(gData)renderGeo(gData);
+
+    // ── Semrush (all in parallel) ────────────────────────────
+    const [s_ov,s_org,s_ppc,s_comp] = await Promise.allSettled([
+        semrushFetch({type:'domain_ranks',          export_columns:'Db,Dn,Rk,Or,Ot,Oc,Ad,At,Ac', domain:CONFIG.DOMAIN}),
+        semrushFetch({type:'domain_organic',        export_columns:'Ph,Po,Nq,Cp,Ur,Tr,Tc,Co,Nr,Td', domain:CONFIG.DOMAIN, display_limit:CONFIG.TOP_ORGANIC_LIMIT}),
+        semrushFetch({type:'domain_adwords',        export_columns:'Ph,Po,Nq,Cp,Ur,Tr,Tc,Co,Nr,Td', domain:CONFIG.DOMAIN, display_limit:CONFIG.TOP_PPC_LIMIT}),
+        semrushFetch({type:'domain_organic_organic',export_columns:'Dn,Cr,Np,Or,Ot,Oc,Ad',          domain:CONFIG.DOMAIN, display_limit:CONFIG.COMPETITOR_LIMIT}),
+    ]);
+    const srOk = d => (d.status==='fulfilled'&&d.value) ? parseSemrushCSV(d.value) : [];
+
+    const ovRows  = srOk(s_ov);
+    const ovMap   = ovRows.length ? ovRows[0] : {};
+    const ownTraf = +(ovMap['Ot']||ovMap['Organic Traffic']||0);
+
+    if(ovRows.length) renderSEOMetrics(ovMap);
+    else {
+        showWarn('Semrush data unavailable. Check that SEMRUSH_API_KEY is set in Netlify environment variables.');
+        document.getElementById('seoMetrics').innerHTML=Array(4).fill(0).map(()=>'<div class="card metric-card"><div class="metric-val">—</div><div class="metric-label">—</div></div>').join('');
+    }
+
+    renderOrganic(srOk(s_org));
+    renderCompetitors(srOk(s_comp), ownTraf);
+
+    const ppcRows=srOk(s_ppc);
+    renderPPCMetrics(ppcRows, ovMap);
+    renderPPCTable(ppcRows);
+
+    // ── Tracked keywords — use organic data as fallback ──────
+    const orgRows = srOk(s_org);
+    const tracked = CONFIG.TRACKED_KEYWORDS.map(kw=>{
+        const match = orgRows.find(r=>(r.Keyword||r.Ph||'').toLowerCase()===kw.toLowerCase());
+        return { Keyword:kw, Position:match?.Po||match?.Position||'—', 'Search Volume':match?.Nq||match?.['Search Volume']||'—', CPC:match?.Cp||match?.CPC||'—' };
+    });
+    renderTracked(tracked);
+}
+
+// ── Period tabs ────────────────────────────────────────────────
+document.querySelectorAll('.period-tab').forEach(tab=>{
+    tab.addEventListener('click',()=>{
+        document.querySelectorAll('.period-tab').forEach(t=>t.classList.remove('active'));
+        tab.classList.add('active');
+        loadDashboard(+tab.dataset.days);
+    });
+});
+
+loadDashboard(30);
+</script>
+</body>
+</html>
