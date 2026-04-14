@@ -170,7 +170,6 @@
 </head>
 <body>
 
-<!-- ── Header ────────────────────────────────────────────── -->
 <header class="site-header">
   <div>
     <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 400 80" style="height:36px">
@@ -205,15 +204,12 @@
   <button class="period-tab" data-days="90">12 Months</button>
 </div>
 
-<!-- ── Banners ────────────────────────────────────────────── -->
 <div id="bannerInfo" class="banner banner-info">ℹ️ <span id="bannerInfoText"></span></div>
 <div id="bannerWarn" class="banner banner-warn">⚠️ <span id="bannerWarnText"></span></div>
 <div id="bannerErr"  class="banner banner-err" >❌ <span id="bannerErrText"></span></div>
 
-<!-- ── Dashboard ─────────────────────────────────────────── -->
 <div class="dashboard">
 
-  <!-- ══ OVERALL PERFORMANCE ══════════════════════════════════ -->
   <div class="section-title">Overall Performance <span class="pill">GA4</span></div>
   <div class="metric-grid" id="ga4Metrics">
     <div class="card metric-card"><div class="skeleton"></div><div class="metric-label">Sessions</div></div>
@@ -249,7 +245,6 @@
     </div>
   </div>
 
-  <!-- ══ SEO ═══════════════════════════════════════════════════ -->
   <div class="section-title" style="margin-top:36px">SEO Performance <span class="pill">Semrush</span></div>
 
   <div class="tv-hero">
@@ -283,7 +278,6 @@
     <div id="competitorBars"><div class="loading">Loading…</div></div>
   </div>
 
-  <!-- ══ PPC ════════════════════════════════════════════════════ -->
   <div class="section-title" style="margin-top:36px">PPC Performance <span class="pill">Semrush</span></div>
 
   <div class="metric-grid" id="ppcMetrics">
@@ -306,11 +300,11 @@
 // ═══════════════════════════════════════════════════════════════
 const CONFIG = {
     SEMRUSH_API_KEY: '',
-    SEMRUSH_PROXY:   '/.netlify/functions/semrush',
-    DOMAIN:          'fidelity-group.co.uk',
-    DATABASE:        'uk',
-    CURRENCY:        '£',
-    GA4_PROXY:       '/.netlify/functions/ga4',
+    SEMRUSH_PROXY: '/api/semrush',
+    DOMAIN: 'fidelity-group.co.uk',
+    DATABASE: 'uk',
+    CURRENCY: '£',
+    GA4_PROXY: '/api/ga4',
     GA4_PROPERTY_ID: '319624134',
     TRACKED_KEYWORDS: [
         'business broadband providers uk',
@@ -658,7 +652,7 @@ async function loadDashboard(days) {
 
     if(ovRows.length) renderSEOMetrics(ovMap);
     else {
-        showWarn('Semrush data unavailable. Check that SEMRUSH_API_KEY is set in Netlify environment variables.');
+        showWarn('Semrush data unavailable. Check that SEMRUSH_API_KEY is set in Vercel environment variables.');
         document.getElementById('seoMetrics').innerHTML=Array(4).fill(0).map(()=>'<div class="card metric-card"><div class="metric-val">—</div><div class="metric-label">—</div></div>').join('');
     }
 
